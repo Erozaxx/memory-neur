@@ -21,11 +21,11 @@ Pokud je model přejmenován, stačí editovat tento soubor + make install-skill
 ## Kde jsou výstupní soubory
 
 Po dokončení intel-analyst zapíše:
-  .aiworkflow/agents/intel-analyst/artifacts/final/assessment_<iter>.md
+  ~/.lore/intel-pass/assessments/assessment_<YYYY-MM-DD>.md
     → Intelligence Assessment Report: patterns, gaps, conflicts, latent heuristics
 
-  .aiworkflow/agents/intel-analyst/artifacts/draft/candidate_<slug>.md
-    → Kandidátní lore záznamy jako hypotézy (označeny [HYPOTÉZA], nikdy v ~/.lore/)
+  ~/.lore/intel-pass/drafts/candidate_<slug>.md
+    → Kandidátní lore záznamy jako hypotézy (označeny [HYPOTÉZA], nikdy v ~/.lore/ root)
 
 ## Jak číst assessment report
 
@@ -99,16 +99,24 @@ Platné hodnoty: lessons | projects | all
 
 ## Krok 4 — Upozornění uživateli (cost warning)
 
-Před spuštěním agenta zobraz:
+Spočítej počet záznamů v scope:
+```bash
+find <scope_path> -name "*.md" ! -name "_schema*" ! -name "_template*" | wc -l
+```
 
+Odhadni spotřebu: ~500 tokenů na záznam + 15 000 fix overhead. Zaokrouhli na tisíce.
+Odhadni čas: ~1 minuta na každých 10 000 tokenů.
+
+Zobraz:
 ```
 ⚠️  DRAHÁ OPERACE
 
 /intel-pass spustí intel-analyst agenta s:
-  Model:   claude-opus-4-7
+  Model:    claude-opus-4-7
   Thinking: extended (budget: 10 000 tokenů)
-  Odhadovaná spotřeba: ~87 000 tokenů
-  Odhadovaný čas:      ~9 minut
+  Záznamy:  <N> souborů v scope
+  Odhad tokenů: ~<X> tokenů
+  Odhad času:   ~<Y> minut
 
 Scope:  <scope_path>
 Focus:  <focus nebo "(bez zaměření)">
@@ -163,15 +171,22 @@ Projdi záznamy v scope jako detektiv. Hledej:
 
 ## Výstup — POVINNÉ
 
-1. Assessment report: .aiworkflow/agents/intel-analyst/artifacts/final/assessment_<iter>.md
+Výstupní adresář je vždy `~/.lore/intel-pass/` — globální lokace nezávislá na projektu.
+
+```bash
+mkdir -p ~/.lore/intel-pass/assessments ~/.lore/intel-pass/drafts
+```
+
+1. Assessment report: `~/.lore/intel-pass/assessments/assessment_<YYYY-MM-DD>.md`
    Strukturuj jako: Identified Patterns | Gaps | Conflicts | Latent Heuristics
    U každého vzoru: confidence level (HIGH/MEDIUM/LOW) + zdrojové záznamy
 
-2. Kandidátní záznamy: .aiworkflow/agents/intel-analyst/artifacts/draft/candidate_<slug>.md
+2. Kandidátní záznamy: `~/.lore/intel-pass/drafts/candidate_<slug>.md`
    Každý označen [HYPOTÉZA], s confidence a sekcí ## Reasoning
 
 KRITICKÝ INVARIANT: Kandidátní záznamy NIKDY NEZAPISUJEŠ přímo do ~/.lore/
-Pouze do artifacts/draft/ — human/reviewer rozhoduje o přijetí.
+Pouze do `~/.lore/intel-pass/drafts/` — human/reviewer rozhoduje o přijetí.
+Pro přijetí: `/lore new <type> --from-draft ~/.lore/intel-pass/drafts/<slug>.md`
 
 ## Stdout summary po dokončení
 
@@ -185,15 +200,20 @@ Po dokončení analýzy vypiš na stdout:
 
 ## Krok 6 — Dispatch intel-analyst agenta
 
-Spusť intel-analyst agenta přes Task tool s tímto briefem.
+Pokud existuje agent profil, přidej ho jako kontext role:
+```bash
+cat .aiworkflow/agents/intel-analyst/AGENTS.md 2>/dev/null || echo "AGENTS.md not found, proceeding without role profile"
+```
 
-Předej briefu agent profil z `.aiworkflow/agents/intel-analyst/AGENTS.md` jako kontext role.
+Spusť intel-analyst agenta přes Task tool s briefem z Kroku 5.
 
 Instrukce pro Task dispatch:
 - Agent: intel-analyst
 - Model: `claude-opus-4-7` (viz brief — KRITICKÝ INVARIANT)
 - Extended thinking: enabled, budget_tokens: 10000
 - Vstupní brief: obsah sestavený v Kroku 5
+
+**POZNÁMKA k model invariantu**: Model specifikace v textu briefu informuje agenta, ale Task tool může použít session model. Pro garantované spuštění na Opus ověř před voláním `/intel-pass` že Claude Code session běží na `claude-opus-4-7`.
 
 ## Krok 7 — Výstup po dokončení
 
@@ -218,13 +238,13 @@ Top 3 hypotézy:
   3. [<CONFIDENCE>] <název hypotézy>
 
 Výstupní soubory:
-  Assessment: .aiworkflow/agents/intel-analyst/artifacts/final/assessment_<iter>.md
-  Kandidáti:  .aiworkflow/agents/intel-analyst/artifacts/draft/candidate_*.md
+  Assessment: ~/.lore/intel-pass/assessments/assessment_<YYYY-MM-DD>.md
+  Kandidáti:  ~/.lore/intel-pass/drafts/candidate_*.md
 
 Jak dál:
   - Přečti assessment report pro přehled vzorů a mezer
-  - Zkontroluj kandidátní záznamy v artifacts/draft/
-  - Pro přijetí kandidáta do ~/.lore/ použij: /lore new <type>
+  - Zkontroluj kandidátní záznamy v ~/.lore/intel-pass/drafts/
+  - Pro přijetí kandidáta: /lore new <type> --from-draft ~/.lore/intel-pass/drafts/<slug>.md
 ```
 
 ---
