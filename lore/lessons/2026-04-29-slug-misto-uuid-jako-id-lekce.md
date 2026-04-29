@@ -6,7 +6,7 @@ tags:
   - identita
   - graph-db-ready
 confidence: medium
-context: Návrh schématu pro soul/lessons/ — viz _schema.yml.
+context: Návrh schématu pro lore/lessons/ — viz _schema.yml.
 source_project: memory-neur
 related:
   - 2026-04-29-github-contents-api-base64-newliny

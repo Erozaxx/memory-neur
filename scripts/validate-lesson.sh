@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validuje frontmatter lesson souboru proti soul/lessons/_schema.yml.
+# Validuje frontmatter lesson souboru proti lore/lessons/_schema.yml.
 # Závislosti: bash, awk, grep — žádné yq, jq, python (přenositelné).
 #
 # Použití:

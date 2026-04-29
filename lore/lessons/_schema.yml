@@ -1,4 +1,4 @@
-# Strojově čitelné schéma frontmatteru pro soul/lessons/*.md
+# Strojově čitelné schéma frontmatteru pro lore/lessons/*.md
 # Validovatelné jako JSON Schema (draft-07) přes ajv, jsonschema apod.
 # Lidská reference v sloupci "purpose".
 
