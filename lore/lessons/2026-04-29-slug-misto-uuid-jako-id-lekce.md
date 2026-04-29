@@ -1,6 +1,7 @@
 ---
 date: 2026-04-29
-type: decision
+type: decision-minor
+schema_version: "1.0"
 tags:
   - schema
   - identita

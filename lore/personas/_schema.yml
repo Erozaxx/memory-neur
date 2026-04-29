@@ -1,0 +1,87 @@
+# Strojově čitelné schéma frontmatteru pro lore/personas/*.md
+# Profily AI agentů a lidských rolí.
+#
+# STUB — plná implementace je záměrně odložena (uživatel má vlastní vizi).
+# Přidávej pole pouze po konzultaci.
+#
+# schema_version: 1.0
+
+$schema: "https://json-schema.org/draft-07/schema#"
+title: persona-frontmatter
+description: >
+  Frontmatter záznamu persony. Identifikátor = název souboru <slug>.md.
+  Bez date-prefix — persona je entita, ne událost.
+  STUB: toto schéma je minimální; plná implementace závisí na uživatelově vizi.
+
+type: object
+additionalProperties: true  # true = povolujeme rozšíření bez schema bumpu (stub!)
+
+required:
+  - date
+  - type
+  - tags
+  - schema_version
+
+properties:
+
+  date:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    purpose: "Datum první formulace persony (ISO 8601)."
+
+  type:
+    type: string
+    enum:
+      - ai-agent    # AI agent (Claude, GPT, vlastní agent)
+      - human-role  # lidská role v týmu nebo projektu
+      - composite   # kombinace více rolí nebo agentů
+    purpose: "Kategorie persony."
+
+  tags:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9-]*$"
+    purpose: "Volné štítky (kebab-case)."
+
+  schema_version:
+    type: string
+    pattern: "^[0-9]+\\.[0-9]+$"
+    purpose: "Verze schématu ve formátu MAJOR.MINOR."
+
+  # --- VOLITELNÉ — základní stub pole ---
+
+  title:
+    type: string
+    purpose: "Jméno nebo označení persony."
+
+  summary:
+    type: string
+    maxLength: 500
+    purpose: "Stručný popis role — do 500 znaků."
+
+  role:
+    type: string
+    purpose: "Stručný popis role a odpovědností."
+
+  related:
+    type: array
+    items:
+      type: string
+    purpose: "Cross-reference. Formát: lore/<type>/<slug>."
+
+  author:
+    type: string
+    purpose: "Jméno člověka nebo identifikátor agenta."
+
+  deprecated:
+    type: boolean
+    purpose: "true = zastaralý záznam. Nikdy nesmazat."
+
+  superseded_by:
+    type: string
+    purpose: "Nástupce. Formát: lore/personas/<slug>."
+
+  # Pole strengths, scope a další definuje uživatel při plné implementaci.
+  # Nezavádět bez konzultace.

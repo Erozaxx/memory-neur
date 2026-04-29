@@ -1,6 +1,13 @@
 # Strojově čitelné schéma frontmatteru pro lore/lessons/*.md
 # Validovatelné jako JSON Schema (draft-07) přes ajv, jsonschema apod.
 # Lidská reference v sloupci "purpose".
+#
+# schema_version: 1.1
+# Změny od 1.0:
+#   - type enum: přidána hodnota "principle" (iter-002)
+#   - type enum: přejmenována "decision" → "decision-minor" (iter-002, S-001 fix)
+#   - povinné pole schema_version přidáno (iter-002)
+#   - volitelná pole: title, summary, projects, conflict_status (iter-002)
 
 $schema: "https://json-schema.org/draft-07/schema#"
 title: lesson-frontmatter
@@ -16,6 +23,7 @@ required:
   - date
   - type
   - tags
+  - schema_version
 
 properties:
 
@@ -30,8 +38,9 @@ properties:
       - gotcha          # technická past, nečekané chování systému
       - anti-pattern    # postup, který vypadá rozumně, ale škodí
       - preference      # subjektivní volba týmu, není absolutní pravda
-      - decision        # vědomé rozhodnutí se zdůvodněním
+      - decision-minor  # vědomé rozhodnutí BEZ alternativ a statusu (pro ADR použij decisions/)
       - heuristika      # pravidlo palce, platí často ale ne vždy
+      - principle       # trvalá heuristika / axiom; bez confidence pole
     purpose: "Klasifikace lekce. Primární filtr."
 
   tags:
@@ -42,18 +51,28 @@ properties:
       pattern: "^[a-z0-9][a-z0-9-]*$"
     purpose: "Volné štítky (kebab-case) pro vyhledávání bez hierarchie."
 
+  schema_version:
+    type: string
+    pattern: "^[0-9]+\\.[0-9]+$"
+    purpose: "Verze schématu ve formátu MAJOR.MINOR (např. '1.0'). Povinné od iter-002."
+
+  title:
+    type: string
+    purpose: "Lidsky čitelný název lekce (max 1 řádek)."
+
+  summary:
+    type: string
+    maxLength: 500
+    purpose: "Shrnutí do 500 znaků — rychlé skenování bez čtení těla."
+
   confidence:
     type: string
     enum: [low, medium, high]
-    purpose: "Subjektivní jistota; vstup pro řešení konfliktů."
+    purpose: "Subjektivní jistota; vstup pro řešení konfliktů. Nepoužívat pro type: principle."
 
-  related:
-    type: array
-    items:
-      type: string
-    purpose: >
-      Slug nebo relativní cesta jiné lekce. Hrana grafu typu „souvisí s".
-      Vyplňuje se postupně — prázdné při zápisu je v pořádku.
+  author:
+    type: string
+    purpose: "Jméno člověka nebo identifikátor agenta. Stopa původu."
 
   context:
     type: string
@@ -62,14 +81,37 @@ properties:
 
   source_project:
     type: string
-    purpose: "Projekt, ze kterého byla lekce konsolidována."
+    purpose: "Projekt, kde lekce vznikla (provenance). Doplněk k projects[]."
+
+  projects:
+    type: array
+    items:
+      type: string
+    purpose: "Projekty, kde je lekce relevantní. Cross-ref jako lore/projects/<slug>."
+
+  related:
+    type: array
+    items:
+      type: string
+    purpose: >
+      Cross-reference na jiné záznamy. Formát: lore/<type>/<slug> (kanonický)
+      nebo holý slug pro same-type (zkrácený). Hrana grafu RELATED_TO.
 
   conflict:
     type: array
     items:
       type: string
-    purpose: "Explicitní rozpor s jinou lekcí (slug / cesta)."
+    purpose: "Explicitní rozpor s jiným záznamem. Formát: lore/<type>/<slug>."
 
-  author:
+  conflict_status:
     type: string
-    purpose: "Jméno člověka nebo identifikátor agenta. Stopa původu."
+    enum: [open, acknowledged, resolved, superseded]
+    purpose: "Stav konfliktu. Přítomno jen pokud je vyplněno pole conflict."
+
+  deprecated:
+    type: boolean
+    purpose: "true = záznam je zastaralý. Nikdy nesmazat, jen označit."
+
+  superseded_by:
+    type: string
+    purpose: "Nástupce tohoto záznamu. Formát: lore/<type>/<slug>."

@@ -1,6 +1,7 @@
 ---
 date: 2026-04-29
 type: gotcha
+schema_version: "1.0"
 tags:
   - github-api
   - base64
