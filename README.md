@@ -76,6 +76,32 @@ Detailní popis struktury a schémat najdeš v [lore/README.md](lore/README.md).
 
 ---
 
+## Claude Code Skills
+
+`memory-neur` obsahuje sadu Claude Code skills pro práci s `~/.lore/` — centrálním lore repozitářem sdíleným napříč projekty.
+
+| Skill | Popis |
+|---|---|
+| `/lore <subcommand>` | Práce s lore záznamy: `new`, `link`, `extract`, `validate`, `audit`, `git` |
+| `/intel-pass` | Intelligence analýza nad `~/.lore/` (Opus + extended thinking) |
+
+### Instalace skills
+
+```bash
+# Instalace do ~/.claude/commands/ + inicializace ~/.lore/ struktury
+make install-skills
+
+# Po první instalaci: jednorázová git inicializace
+cd ~/.lore && git init
+
+# Odebrání
+make uninstall-skills
+```
+
+Podrobná dokumentace: [skills/README.md](skills/README.md).
+
+---
+
 ## Struktura repozitáře
 
 ```
@@ -89,6 +115,9 @@ scripts/
   validate-lesson.sh    ← validace jednotlivého záznamu
   validate-all.sh       ← validace celého lore
   audit-conflicts.sh    ← kontrola konfliktních záznamů
+skills/
+  lore/         ← /lore dispatcher skill (source)
+  intel-pass/   ← /intel-pass skill (source)
 ```
 
 Technická dokumentace schémat a validačních pravidel: [lore/README.md](lore/README.md).
