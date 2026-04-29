@@ -84,7 +84,7 @@ Pokud by byl subcommandem /lore, model specifikace by mohla být tiše obejita.
 
 ## Sekce NEW — `/lore new <type>`
 
-Argumenty: první token za `new` je `<type>`.
+Argumenty: první token za `new` je `<type>`. Volitelný přepínač: `--from-draft <path>` načte existující draft místo inference z kontextu.
 
 ### Krok N-1 — Ověř typ
 
@@ -106,24 +106,35 @@ cat ~/.lore/<type>/_schema.yml
 
 Pokud soubor neexistuje, vypiš varování a pokračuj s obecnými poli (date, type, tags, schema_version, title, summary).
 
-### Krok N-3 — Vyžádej frontmatter od uživatele (LLM)
+### Krok N-3 — Inferuj a navrhni kompletní draft (LLM)
 
-Na základě schématu ze kroku N-2 identifikuj povinná pole (sekce `required:`). Zeptej se uživatele na hodnoty. Pro každé povinné pole, které uživatel neposkytl, se ptej dokud ho nedostaneš.
-
-Volitelná pole navrhni s rozumnými výchozími hodnotami a zeptej se uživatele zda je chce změnit.
-
-Vygeneruj `slug` ve formátu `YYYY-MM-DD-<stručný-popis>` (kebab-case, max 50 znaků). Navrhni slug uživateli, počkej na potvrzení nebo úpravu.
-
-### Krok N-4 — Načti šablonu a doplň pole (LLM)
-
-Spusť:
+Načti šablonu:
 ```bash
 cat ~/.lore/<type>/_template.md
 ```
 
-Doplň frontmatter a tělo šablony hodnotami od uživatele. Zachovej strukturu šablony.
+Pokud byl zadán `--from-draft <path>`:
+```bash
+cat <path>
+```
+Použij obsah draftu jako základ. Doplň nebo oprav pole která chybí nebo mají `TODO`.
 
-Výsledný obsah zobraz uživateli k potvrzení před zápisem.
+Jinak: na základě schématu (N-2) a aktuálního konverzačního kontextu inferuj hodnoty všech polí — povinných i volitelných. Nevyptávej se uživatele na jednotlivá pole.
+
+Pravidla inference:
+- `date`: dnešní datum (YYYY-MM-DD)
+- `title`, `summary`, `tags`, `type`: odvoď z kontextu session (co se řešilo, jaký byl výsledek)
+- `slug`: `YYYY-MM-DD-<stručný-popis>` (kebab-case, max 50 znaků), odvozeno z title
+- Ostatní pole: doplň z kontextu nebo z výchozích hodnot schématu
+- Pokud povinné pole nelze inferovat, doplň `TODO` — nezastavuj se
+
+Doplň frontmatter i tělo šablony. Zachovej strukturu šablony.
+
+Zobraz kompletní draft a zeptej se jednou: **„Chceš něco upravit? (pokud ne, rovnou pokračuju zápisem)"**
+
+Pokud uživatel chce úpravy → aplikuj je. Pak pokračuj. Pokud ne → pokračuj okamžitě.
+
+### Krok N-4 — (přeskočen — sloučen s N-3)
 
 ### Krok N-5 — Zapiš soubor (bash)
 
@@ -150,10 +161,10 @@ bash ~/.lore/scripts/validate-all.sh
 ```
 
 Pokud validace vrátí FAIL:
-- Zobraz chybu uživateli
-- Identifikuj konkrétní pole které selhalo
-- Nabídni opravu
-- Po opravě spusť validaci znovu (loop dokud PASS nebo uživatel nezruší)
+- Identifikuj konkrétní pole které selhalo (znáš schéma z N-2)
+- Oprav ho automaticky — nepotřebuješ se ptát uživatele na základní schema chyby
+- Přepiš soubor přes Edit tool
+- Spusť validaci znovu (loop dokud PASS, max 3 pokusy; po 3. selhání reportuj uživateli a zastav)
 
 Pokračuj pouze pokud validace prošla (PASS).
 
@@ -204,6 +215,7 @@ find ~/.lore -name "*.md" ! -name "_template.md" ! -name "_schema.yml" 2>/dev/nu
 ```
 
 Přečti frontmatter kandidátních souborů. Vynech soubor samotný (nesmí odkazovat sám na sebe).
+Limit: čti maximálně 100 souborů — pokud `find` vrátí více, vezmi posledních 100 (seřazeno dle data v názvu souboru sestupně). Na velkém lore repozitáři je to dostatečné pro relevantní vazby.
 
 ### Krok L-4 — Navrhni edges (LLM)
 
@@ -277,7 +289,7 @@ Pokud soubor neexistuje, zastav se s chybou: `CHYBA: Soubor '<source>' nenalezen
 ### Krok E-2 — Parsuj přepínače
 
 - `--target-types <typy>`: filtr typů oddělených čárkou (např. `lesson,process`). Default: `lesson,decision,project,process,persona`
-- `--write-drafts`: pokud přítomen, zapíše drafty do `artifacts/draft/` (viz krok E-4)
+- `--write-drafts`: pokud přítomen, zapíše drafty do `~/.lore/drafts/` (viz krok E-4)
 
 ### Krok E-3 — Analýza source souboru (LLM)
 
@@ -318,9 +330,11 @@ Na konec vypiš:
 ```
 
 Pokud je přítomen `--write-drafts`:
-- Zkus: `ls artifacts/draft/ 2>/dev/null || echo "NEXIST"`
-- Pokud adresář existuje, zapiš každý draft jako `artifacts/draft/<slug>.md`
-- Pokud neexistuje, vypiš varování: `WARN: artifacts/draft/ neexistuje, drafty nebyly zapsány`
+```bash
+mkdir -p ~/.lore/drafts
+```
+Zapiš každý draft jako `~/.lore/drafts/<slug>.md`. Drafts jsou označeny `[DRAFT]` v title a obsahují celý navrhovaný frontmatter + tělo.
+Pro přijetí draftu do lore: `/lore new <type> --from-draft ~/.lore/drafts/<slug>.md`
 
 **PŘIPOMENUTÍ**: Výstup tohoto subcommandu jsou DRAFTY. Pro commit do `~/.lore/` použij `/lore new` pro každý kandidát zvlášť.
 
@@ -388,13 +402,13 @@ find ~/.lore -name "*.md" ! -name "_template.md" ! -name "_schema.yml" 2>/dev/nu
 
 ### Krok A-2 — Extrahuj cross-reference hodnoty (bash)
 
-Pro každý soubor extrahuj hodnoty z frontmatter polí `lessons:`, `related:`, `source_project:`:
+Pro každý soubor extrahuj hodnoty z frontmatter polí `lessons:`, `related:`, `source_project:`.
+Používej `find` (ne `**` glob — vyžaduje `globstar` a není garantováno):
 
 ```bash
-grep -h "^  - " ~/.lore/**/*.md 2>/dev/null | sort -u
+find ~/.lore -name "*.md" ! -name "_template.md" ! -name "_schema.yml" \
+  -exec grep -h "^  - " {} \; 2>/dev/null | sort -u
 ```
-
-Nebo sekvenčně přes find + grep kombinaci pro každý soubor.
 
 ### Krok A-3 — Ověř existenci cílů (bash)
 
@@ -449,7 +463,11 @@ Inicializace:
 
 **commit** (vyžaduje message):
 ```bash
-cd ~/.lore && git add -A && git commit -m "<message>"
+git -C ~/.lore/ status --short
+```
+Zobraz výstup uživateli (co bude staged). Poté:
+```bash
+git -C ~/.lore/ add -A && git -C ~/.lore/ commit -m "<message>"
 ```
 Pokud message není poskytnuta, zastav se: `CHYBA: commit vyžaduje zprávu. Použití: /lore git commit "zpráva commitu"`
 
