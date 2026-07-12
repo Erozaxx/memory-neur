@@ -10,9 +10,9 @@ Po instalaci jsou dostupné jako `/lore` a `/intel-pass` přímo v Claude Code.
 ```
 skills/
 ├── lore/
-│   └── lore.md          — slash command /lore (vytváří T-005 agent)
+│   └── lore.md          — slash command /lore (správa ~/.lore/ repozitáře)
 └── intel-pass/
-    └── intel-pass.md    — slash command /intel-pass (vytváří T-006 agent)
+    └── intel-pass.md    — slash command /intel-pass (inteligentní průchod lore záznamy)
 ```
 
 ## Prerekvizity
