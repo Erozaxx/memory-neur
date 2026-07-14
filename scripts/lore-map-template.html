@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lore map</title>
+<style>
+  :root {
+    --type-clients: #e64980;
+    --type-intel-pass: #15aabf;
+    --type-knowledge: #12b886;
+    --type-lessons: #4c6ef5;
+    --type-processes: #7048e8;
+    --type-projects: #f59f00;
+    --type-other: #868e96;
+    --ghost-fill: #ced4da;
+    --ghost-stroke: #868e96;
+    --edge-color: #adb5bd;
+    --edge-dangling: #e03131;
+    --selected-stroke: #212529;
+    --bg: #eceef0;
+    --hub-bg: #ffffff;
+    --panel-bg: #ffffff;
+    --text: #212529;
+    --text-muted: #495057;
+    --border: #dee2e6;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  #header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-bg);
+  }
+
+  #header-title {
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  #search {
+    font: inherit;
+    font-size: 13px;
+    width: 240px;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--panel-bg);
+    color: var(--text);
+  }
+
+  #search:focus {
+    outline: none;
+    border-color: var(--type-lessons);
+  }
+
+  #search-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    min-width: 96px;
+  }
+
+  #stats {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  #legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex: 0 0 auto;
+  }
+
+  .legend-swatch.type-clients { background-color: var(--type-clients); }
+  .legend-swatch.type-intel-pass { background-color: var(--type-intel-pass); }
+  .legend-swatch.type-knowledge { background-color: var(--type-knowledge); }
+  .legend-swatch.type-lessons { background-color: var(--type-lessons); }
+  .legend-swatch.type-processes { background-color: var(--type-processes); }
+  .legend-swatch.type-projects { background-color: var(--type-projects); }
+  .legend-swatch.type-other { background-color: var(--type-other); }
+  .legend-swatch.ghost {
+    background-color: var(--ghost-fill);
+    border: 1.5px dashed var(--ghost-stroke);
+  }
+
+  #reset-view {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--panel-bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  #reset-view:hover {
+    background: var(--bg);
+  }
+
+  /* --- tlačítka sekcí (T-012c) --------------------------------------------
+     Jedno tlačítko na typ, popisek "typ (počet)", pořadí sestupně dle počtu
+     (přebírá se přímo z LAYOUT.sectors, který je ve stejném pořadí). Barva
+     tlačítka = barva výseče/uzlů daného typu, ať je vazba na mapu okamžitá.
+     Aktivní (zafokusovaná) sekce se podbarví plnou barvou typu. */
+  #section-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .section-btn {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    background: var(--panel-bg);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .section-btn:hover {
+    background: var(--bg);
+  }
+
+  .section-btn.type-clients { border-color: var(--type-clients); color: var(--type-clients); }
+  .section-btn.type-intel-pass { border-color: var(--type-intel-pass); color: var(--type-intel-pass); }
+  .section-btn.type-knowledge { border-color: var(--type-knowledge); color: var(--type-knowledge); }
+  .section-btn.type-lessons { border-color: var(--type-lessons); color: var(--type-lessons); }
+  .section-btn.type-processes { border-color: var(--type-processes); color: var(--type-processes); }
+  .section-btn.type-projects { border-color: var(--type-projects); color: var(--type-projects); }
+  .section-btn.type-other { border-color: var(--type-other); color: var(--type-other); }
+
+  .section-btn.active {
+    color: #fff;
+  }
+
+  .section-btn.active.type-clients { background: var(--type-clients); }
+  .section-btn.active.type-intel-pass { background: var(--type-intel-pass); }
+  .section-btn.active.type-knowledge { background: var(--type-knowledge); }
+  .section-btn.active.type-lessons { background: var(--type-lessons); }
+  .section-btn.active.type-processes { background: var(--type-processes); }
+  .section-btn.active.type-projects { background: var(--type-projects); }
+  .section-btn.active.type-other { background: var(--type-other); }
+
+  /* Přechod se zapíná jen na dobu fokusu/reset animace (třída se po ní zase
+     sundá) — kolečko a tažení tak zůstávají OKAMŽITÉ, bez zpoždění transition. */
+  #viewport.view-transition {
+    transition: transform 350ms ease-out, font-size 350ms ease-out;
+  }
+
+  #subheader {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 5px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-bg);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  #detail {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  #hint {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  #map-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  svg#svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+
+  svg#svg.panning {
+    cursor: grabbing;
+  }
+
+  #tooltip {
+    position: fixed;
+    display: none;
+    max-width: 260px;
+    background: #212529;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 6px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* selection dimming (klik na uzel) */
+  .dimmed {
+    opacity: 0.15;
+  }
+
+  /* search dimming: uzel NEZMIZÍ, jen zešedne — kontext zůstává vidět */
+  .search-dim {
+    opacity: 0.3;
+    filter: grayscale(1);
+  }
+
+  /* --- radiální výseče (T-012b) ------------------------------------------
+     Jedna výseč = jeden `type`. Podbarvení je jemné (9 %), aby přes něj byly
+     čitelné hrany i popisky; obrys výseče dělá dělicí paprsky mezi typy. */
+  .sector-wedge {
+    fill-opacity: 0.09;
+    stroke-opacity: 0.40;
+    stroke-width: 1;
+    pointer-events: none;
+  }
+
+  .sector-wedge.type-clients { fill: var(--type-clients); stroke: var(--type-clients); }
+  .sector-wedge.type-intel-pass { fill: var(--type-intel-pass); stroke: var(--type-intel-pass); }
+  .sector-wedge.type-knowledge { fill: var(--type-knowledge); stroke: var(--type-knowledge); }
+  .sector-wedge.type-lessons { fill: var(--type-lessons); stroke: var(--type-lessons); }
+  .sector-wedge.type-processes { fill: var(--type-processes); stroke: var(--type-processes); }
+  .sector-wedge.type-projects { fill: var(--type-projects); stroke: var(--type-projects); }
+  .sector-wedge.type-other { fill: var(--type-other); stroke: var(--type-other); }
+
+  /* Popisek typu leží na obvodu (vně posledního prstence uzlů), takže nemá
+     do čeho narazit — halo (paint-order: stroke) ho drží čitelný i přes
+     hranu výseče. */
+  .sector-caption {
+    font-size: 14px;
+    font-weight: 700;
+    dominant-baseline: central;
+    pointer-events: none;
+    user-select: none;
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+
+  .sector-caption.type-clients { fill: var(--type-clients); }
+  .sector-caption.type-intel-pass { fill: var(--type-intel-pass); }
+  .sector-caption.type-knowledge { fill: var(--type-knowledge); }
+  .sector-caption.type-lessons { fill: var(--type-lessons); }
+  .sector-caption.type-processes { fill: var(--type-processes); }
+  .sector-caption.type-projects { fill: var(--type-projects); }
+  .sector-caption.type-other { fill: var(--type-other); }
+
+  /* Střed je záměrně prázdný (uzly začínají až od vnitřního poloměru) —
+     hrany, které by jinak vedly přes střed, se kolem něj obloukem obtáčejí. */
+  .hub-circle {
+    fill: var(--hub-bg);
+    stroke: var(--border);
+    stroke-width: 1;
+    pointer-events: none;
+  }
+
+  .hub-title {
+    font-size: 15px;
+    font-weight: 700;
+    fill: var(--text);
+    text-anchor: middle;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .hub-sub {
+    font-size: 11px;
+    fill: var(--text-muted);
+    text-anchor: middle;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Popisek u uzlu: vpravo od uzlu v pravé polovině mapy, vlevo v levé —
+     text tak vždy míří VEN z kotouče, ne přes něj. */
+  .node-label {
+    fill: var(--text-muted);
+    dominant-baseline: central;
+    pointer-events: none;
+    user-select: none;
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 2.5px;
+    stroke-linejoin: round;
+  }
+
+  .node-label.side-right { text-anchor: start; }
+  .node-label.side-left { text-anchor: end; }
+
+  .node-label.search-hit {
+    fill: var(--text);
+    font-weight: 700;
+  }
+
+  .edge {
+    fill: none;
+    stroke: var(--edge-color);
+    stroke-width: 1;
+    stroke-opacity: 0.45;
+  }
+
+  .edge.dangling {
+    stroke: var(--edge-dangling);
+    stroke-dasharray: 5 3;
+  }
+
+  .edge.highlight {
+    stroke: var(--selected-stroke);
+    stroke-width: 2;
+    stroke-opacity: 1;
+  }
+
+  .node-circle {
+    stroke: #fff;
+    stroke-width: 1;
+    cursor: pointer;
+  }
+
+  .node-circle.type-clients { fill: var(--type-clients); }
+  .node-circle.type-intel-pass { fill: var(--type-intel-pass); }
+  .node-circle.type-knowledge { fill: var(--type-knowledge); }
+  .node-circle.type-lessons { fill: var(--type-lessons); }
+  .node-circle.type-processes { fill: var(--type-processes); }
+  .node-circle.type-projects { fill: var(--type-projects); }
+  .node-circle.type-other { fill: var(--type-other); }
+
+  .node-circle.ghost {
+    fill: var(--ghost-fill);
+    stroke: var(--ghost-stroke);
+    stroke-dasharray: 3 2;
+  }
+
+  .node-circle.selected {
+    stroke: var(--selected-stroke);
+    stroke-width: 2.5;
+  }
+
+  .node-circle.search-hit {
+    stroke: var(--selected-stroke);
+    stroke-width: 2;
+  }
+
+  /* Plovoucí detail panel (T-013): otevírá se v pravém horním rohu #map-wrap
+     na jednoklik. Je to obyčejné HTML mimo SVG, takže klik do něj nikdy
+     nespustí pan/click handlery, které jsou zavěšené na svg#svg. */
+  #detail-panel {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 320px;
+    max-width: calc(100% - 28px);
+    display: flex;
+    flex-direction: column;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+    z-index: 20;
+  }
+
+  #detail-panel.hidden {
+    display: none;
+  }
+
+  #detail-panel-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 8px 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #detail-panel-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  #detail-panel-close {
+    flex: 0 0 auto;
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  #detail-panel-close:hover {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  #detail-panel-meta {
+    padding: 8px 14px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  #detail-panel-meta div {
+    margin: 2px 0;
+    word-break: break-all;
+  }
+
+  #detail-panel-body {
+    padding: 8px 14px 12px;
+    overflow-y: auto;
+    max-height: 340px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  #detail-panel-body .fm-line {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  #detail-panel-body .fm-empty,
+  #detail-panel-body .fm-ghost-hint {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text-muted);
+    white-space: normal;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <div id="header-title">lore map</div>
+  <input id="search" type="search" placeholder="hledat (od 3. znaku)…" autocomplete="off" spellcheck="false">
+  <div id="search-info"></div>
+  <div id="stats"></div>
+  <div id="legend"></div>
+  <div id="section-buttons"></div>
+  <button id="reset-view" type="button">Reset</button>
+</div>
+<div id="subheader">
+  <div id="detail">klikni na uzel pro detail</div>
+  <div id="hint">výseč = typ záznamu (úhel dle počtu) · kolečko = zoom (popisky se prodlužují) · tažení = posun · klik = detail · dvojklik = otevřít .md</div>
+</div>
+<div id="map-wrap">
+  <svg id="svg">
+    <g id="viewport"></g>
+  </svg>
+  <div id="tooltip"></div>
+  <div id="detail-panel" class="hidden">
+    <div id="detail-panel-header">
+      <div id="detail-panel-title"></div>
+      <button id="detail-panel-close" type="button" title="zavřít (Esc)" aria-label="zavřít">×</button>
+    </div>
+    <div id="detail-panel-meta"></div>
+    <div id="detail-panel-body"></div>
+  </div>
+</div>
+<script type="application/json" id="lore-graph">
+/*__LORE_GRAPH__*/
+</script>
+<script id="lore-map-js">
+// Minimální délka dotazu, od které vyhledávání vůbec něco dělá.
+// Pod tuto hranici matchNodes() vrací prázdnou množinu = "nefiltruj, nech vše barevné".
+var MIN_SEARCH_CHARS = 3;
+
+// -------------------------------------------------------------------------
+// RADIÁLNÍ LAYOUT — VÝSEČE PODLE TYPU (T-012b)
+//
+// Kotouč se dělí od středu na klíny, jeden klín = jeden `type`, úhel klínu je
+// úměrný počtu uzlů daného typu. Uzly se skládají dovnitř klínu na soustředné
+// oblouky od vnitřního poloměru ven.
+//
+// Proč zrovna tyhle konstanty:
+//
+// * MIN_SECTOR_DEG = 15 — `intel-pass` má 1 uzel ze 150, ryze proporčně by
+//   dostal 2,4° = neviditelný škrábanec. Minimum 15° z něj dělá čitelnou
+//   sekci s vlastním popiskem a přitom zůstává POD nejmenším neomezeným
+//   klínem (`processes`, 9 uzlů → 20,8°), takže pravidlo "víc uzlů = větší
+//   úhel" platí i po zavedení minima. Zbývajících 345° se rozdělí proporčně
+//   mezi ostatní typy (lessons 194,4° → 187,6°, tedy ztráta 3,5 %).
+//
+// * SEP_X = 62 / SEP_Y = 13 — popisek je VODOROVNÝ text ~60 px široký a ~12 px
+//   vysoký. Dva uzly se tedy popisky nepřekryjí právě tehdy, když se liší
+//   aspoň o 62 px v ose X NEBO aspoň o 13 px v ose Y. Tohle je jediné tvrdé
+//   pravidlo layoutu a drží se GLOBÁLNĚ (kontrolou proti všem už umístěným
+//   uzlům), ne jen uvnitř jednoho klínu — jinak by se uzly srazily na hranici
+//   dvou sousedních výsečí.
+//
+// * Z SEP_X/SEP_Y plyne, jak daleko od sebe musí být dva sousedi NA OBLOUKU:
+//   tečna je u vodorovného směru svislá (stačí 18 px), ale u svislého směru
+//   vodorovná (nutných až ~62 px). Proto je kotouč u "dvanáctky" a "šestky"
+//   řidší než u "trojky" a "devítky". To není chyba layoutu, to je cena za
+//   nepřekrývající se vodorovné popisky.
+//
+// * Střed do R_INNER zůstává prázdný. Kdyby uzly začínaly u středu, sbíhaly by
+//   se tam všechny klíny a minimální rozestup by padnul.
+// -------------------------------------------------------------------------
+
+var MIN_SECTOR_DEG = 15;   // minimální úhel výseče (viz komentář výše)
+var R_INNER = 96;          // vnitřní poloměr — pod ním uzly nejsou (prázdný střed)
+var R_OUTER = 372;         // vnější poloměr — drží uzly >= 78 px od okraje plátna
+var RINGS_MIN = 5;         // výchozí počet prstenců na výseč
+var RINGS_MAX = 16;        // strop (úzké/svislé výseče potřebují víc prstenců)
+var PAD_DEG = 2.5;         // odsazení uzlů od hranice výseče
+var SEP_X = 62;            // min. rozdíl v X, pokud se uzly nerozejdou v Y
+var SEP_Y = 13;            // min. rozdíl v Y, pokud se uzly nerozejdou v X
+var MIN_DIST = 17;         // min. vzdálenost středů uzlů
+var CHORD_MIN = 18;        // min. tětiva mezi sousedy na oblouku
+var LABEL_MAX_PX = 150;    // strop pro popisek uzlu, který nemá souseda v řádku
+var DEG = 180 / Math.PI;
+
+// Geometrie spočítaná v computeLayout(). Čistá data (žádný DOM) — render() z
+// toho kreslí výseče, popisky typů a středový terč.
+var LAYOUT = {
+  cx: 600, cy: 450,
+  rInner: R_INNER,
+  rOuter: R_OUTER,
+  sectors: [],      // [{ type, count, a0, a1, mid, span }] — úhly ve stupních
+  labelBudget: {}   // id uzlu -> kolik px má popisek k dispozici
+};
+
+function createSvgElement(ns, tag, attrs) {
+  var el = document.createElementNS(ns, tag);
+  if (attrs) {
+    Object.keys(attrs).forEach(function (key) {
+      el.setAttribute(key, attrs[key]);
+    });
+  }
+  return el;
+}
+
+function dedupEdges(edges) {
+  var seen = new Map();
+  (edges || []).forEach(function (e) {
+    var pair = [e.source, e.target].sort();
+    var key = pair.join('|');
+    if (!seen.has(key)) {
+      seen.set(key, {
+        source: e.source,
+        target: e.target,
+        field: e.field,
+        dangling: !!e.dangling,
+        key: key
+      });
+    } else if (e.dangling) {
+      seen.get(key).dangling = true;
+    }
+  });
+  return Array.from(seen.values());
+}
+
+// Neighbor map keyed by node id -> Set of neighbor ids, built from BOTH
+// directions of each edge (data is directed, adjacency semantics are not).
+function buildAdjacency(nodes, edges) {
+  var adjacency = {};
+  (nodes || []).forEach(function (n) {
+    adjacency[n.id] = new Set();
+  });
+  (edges || []).forEach(function (e) {
+    if (adjacency[e.source]) adjacency[e.source].add(e.target);
+    if (adjacency[e.target]) adjacency[e.target].add(e.source);
+  });
+  return adjacency;
+}
+
+// Stupeň uzlu počítaný z hran. Hrany se cestou deduplikují, takže computeLayout
+// dá STEJNÝ výsledek, ať dostane surové hrany (acceptance harness) nebo už
+// deduplikované (main()).
+function degreeMap(nodes, edges) {
+  var deg = {}, seen = {};
+  (nodes || []).forEach(function (n) { deg[n.id] = 0; });
+  (edges || []).forEach(function (e) {
+    var key = e.source < e.target ? e.source + '|' + e.target : e.target + '|' + e.source;
+    if (seen[key]) return;
+    seen[key] = 1;
+    if (deg[e.source] !== undefined) deg[e.source]++;
+    if (deg[e.target] !== undefined) deg[e.target]++;
+  });
+  return deg;
+}
+
+function cmpStr(a, b) { return a < b ? -1 : (a > b ? 1 : 0); }
+
+function labelOf(n) { return n.title || n.slug || n.id || ''; }
+
+function nodeRadius(n) {
+  return 3.2 + 1.25 * Math.sqrt(n.degree || 0);
+}
+
+// Úhly výsečí: proporčně dle počtu uzlů, ale nikdo nedostane míň než
+// MIN_SECTOR_DEG. Typy pod minimem se "zafixují" a zbytek kruhu se přepočítá
+// proporčně mezi ostatní; iteruje se, dokud se seznam zafixovaných nemění
+// (jeden průchod by nestačil, kdyby přepočet shodil pod minimum další typ).
+function sectorAngles(counts, types) {
+  var floored = {}, changed = true, guard = 0, i, t;
+  while (changed && guard++ < 12) {
+    changed = false;
+    var freeDeg = 360, freeCount = 0;
+    types.forEach(function (ty) {
+      if (floored[ty]) freeDeg -= MIN_SECTOR_DEG; else freeCount += counts[ty];
+    });
+    for (i = 0; i < types.length; i++) {
+      t = types[i];
+      if (floored[t]) continue;
+      var a = freeCount > 0 ? (counts[t] / freeCount) * freeDeg : 0;
+      if (a < MIN_SECTOR_DEG) { floored[t] = true; changed = true; }
+    }
+  }
+  var fd = 360, fc = 0;
+  types.forEach(function (ty) {
+    if (floored[ty]) fd -= MIN_SECTOR_DEG; else fc += counts[ty];
+  });
+  var out = {};
+  types.forEach(function (ty) {
+    out[ty] = floored[ty] ? MIN_SECTOR_DEG : (fc > 0 ? (counts[ty] / fc) * fd : 0);
+  });
+  return out;
+}
+
+// Nejmenší přípustná tětiva mezi dvěma sousedy na oblouku v úhlu th (stupně).
+// Tečna v úhlu th má směr (-sin, cos): posun po oblouku o `c` dá |dx| = c*|sin|
+// a |dy| = c*|cos|. Stačí splnit JEDNU z podmínek (SEP_X v X nebo SEP_Y v Y),
+// takže se bere ta levnější.
+function chordFor(thDeg) {
+  var th = thDeg / DEG;
+  var s = Math.abs(Math.sin(th)), c = Math.abs(Math.cos(th));
+  var byX = s > 1e-9 ? SEP_X / s : Infinity;
+  var byY = c > 1e-9 ? SEP_Y / c : Infinity;
+  var need = Math.min(byX, byY);
+  if (!isFinite(need)) need = CHORD_MIN;
+  return Math.max(CHORD_MIN, need);
+}
+
+// Tvrdé pravidlo layoutu — kontroluje se proti VŠEM už umístěným uzlům (i z
+// jiných výsečí), ne jen proti sousedům na stejném oblouku.
+function conflicts(x, y, placed) {
+  for (var i = 0; i < placed.length; i++) {
+    var dx = x - placed[i].x; if (dx < 0) dx = -dx;
+    var dy = y - placed[i].y; if (dy < 0) dy = -dy;
+    if (dx < SEP_X && dy < SEP_Y) return true;
+    if (dx * dx + dy * dy < MIN_DIST * MIN_DIST) return true;
+  }
+  return false;
+}
+
+// m úhlů od i0 s krokem F * chordFor(th) / r.
+function walkAngles(m, r, i0, F) {
+  var out = [], th = i0;
+  for (var j = 0; j < m; j++) {
+    out.push(th);
+    th += F * chordFor(th) / r * DEG;
+  }
+  return out;
+}
+
+// Kolik uzlů se vejde na oblouk r ∈ [i0, i1] při minimálních tětivách.
+function ringCapacity(r, i0, i1) {
+  var c = 0, th = i0, guard = 0;
+  while (th <= i1 && guard++ < 4000) { c++; th += chordFor(th) / r * DEG; }
+  return c;
+}
+
+// m uzlů ROVNOMĚRNĚ roztažených po oblouku [i0, i1]. Roztažení dělá společný
+// faktor F >= 1 nad minimální tětivou (binární hledání), takže každá mezera
+// zůstane >= chordFor() ve svém úhlu — kdyby se místo toho dorovnával jen
+// zbytek na konci, mohla by mezera spadnout pod minimum v jiném úhlu.
+function ringAngles(m, r, i0, i1) {
+  if (m <= 0) return [];
+  if (m === 1) return [(i0 + i1) / 2];
+  var lo = 1, hi = 20, mid, a;
+  for (var it = 0; it < 26; it++) {
+    mid = (lo + hi) / 2;
+    a = walkAngles(m, r, i0, mid);
+    if (a[m - 1] > i1) hi = mid; else lo = mid;
+  }
+  return walkAngles(m, r, i0, lo);
+}
+
+// k prstenců rovnoměrně od R_INNER k R_OUTER — každá výseč tak sahá až na
+// obvod, ať má uzlů kolik chce (jinak by malé výseče zůstaly u středu a
+// kotouč by vypadal roztřepeně).
+function ringRadii(k) {
+  if (k <= 1) return [(R_INNER + R_OUTER) / 2];
+  var out = [];
+  for (var i = 0; i < k; i++) out.push(R_INNER + i * (R_OUTER - R_INNER) / (k - 1));
+  return out;
+}
+
+// Rozdělí `total` uzlů mezi prstence úměrně jejich kapacitě (metoda největších
+// zbytků — deterministická, žádná náhoda).
+function shareOut(total, caps) {
+  var i, sum = 0;
+  for (i = 0; i < caps.length; i++) sum += caps[i];
+  var out = caps.map(function () { return 0; });
+  if (sum <= 0) return out;
+
+  var raw = caps.map(function (c) { return total * c / sum; });
+  var rest = total;
+  for (i = 0; i < raw.length; i++) { out[i] = Math.floor(raw[i]); rest -= out[i]; }
+
+  var order = raw.map(function (v, idx) { return { i: idx, frac: v - Math.floor(v) }; })
+    .sort(function (a, b) { return (b.frac - a.frac) || (a.i - b.i); });
+  for (i = 0; i < order.length && rest > 0; i++) {
+    var oi = order[i].i;
+    if (out[oi] < caps[oi]) { out[oi]++; rest--; }
+  }
+  for (i = caps.length - 1; i >= 0 && rest > 0; i--) {
+    while (out[i] < caps[i] && rest > 0) { out[i]++; rest--; }
+  }
+  return out;
+}
+
+// Zkusí rozmístit celou výseč na k prstenců. Vrátí pole pozic (od vnitřního
+// prstence ven) nebo null, když se to na k prstenců nevejde.
+function trySector(count, i0, i1, k, placed, cx, cy) {
+  var radii = ringRadii(k);
+  var caps = radii.map(function (r) { return ringCapacity(r, i0, i1); });
+  var capSum = 0;
+  caps.forEach(function (c) { capSum += c; });
+  if (capSum < count) return null;
+
+  var targets = shareOut(count, caps);
+  var pos = [];
+  var local = placed.slice();
+  var carry = 0;
+
+  for (var ri = 0; ri < radii.length; ri++) {
+    var r = radii[ri];
+    var want = Math.min(targets[ri] + carry, caps[ri]);
+    carry = targets[ri] + carry - want;
+    if (want <= 0) continue;
+
+    var angles = ringAngles(want, r, i0, i1);
+    for (var a = 0; a < angles.length; a++) {
+      var th = angles[a], ok = false, x = 0, y = 0, guard = 0;
+      // Ideální úhel může kolidovat s uzlem ze SOUSEDNÍ výseče (u hranice) —
+      // pak se uzel posouvá po oblouku dál, dokud si nesedne.
+      while (th <= i1 && guard++ < 1200) {
+        var rad = th / DEG;
+        x = cx + r * Math.cos(rad);
+        y = cy + r * Math.sin(rad);
+        if (!conflicts(x, y, local)) { ok = true; break; }
+        th += 0.35;
+      }
+      if (ok) {
+        pos.push({ x: x, y: y });
+        local.push({ x: x, y: y });
+      } else {
+        carry++;   // na tenhle prstenec se nevešel, zkusí se na dalším
+      }
+    }
+  }
+  return pos.length >= count ? pos : null;
+}
+
+// Nouzový režim: hrubý sken výseče od středu ven. Používá se jen kdyby ani
+// RINGS_MAX prstenců nestačilo (s reálnými daty nenastává) — pojistka proti
+// tomu, aby uzel zůstal bez souřadnic.
+function scanSector(count, i0, i1, placed, cx, cy) {
+  var pos = [];
+  for (var r = R_INNER; r <= R_OUTER && pos.length < count; r += 7) {
+    for (var th = i0; th <= i1 && pos.length < count; th += 0.35) {
+      var x = cx + r * Math.cos(th / DEG);
+      var y = cy + r * Math.sin(th / DEG);
+      if (conflicts(x, y, placed) || conflicts(x, y, pos)) continue;
+      pos.push({ x: x, y: y });
+    }
+  }
+  return pos;
+}
+
+// Kolik místa má popisek konkrétního uzlu: k nejbližšímu uzlu na TÉ STRANĚ,
+// kam text míří, a jen mezi těmi, které jsou ve stejném "řádku" (|dy| < SEP_Y+1).
+// Uzly ve vlastní řadě nemá cenu započítávat — text je od nich odsazený svisle.
+function labelBudgets(nodes, cx) {
+  var out = {};
+  for (var i = 0; i < nodes.length; i++) {
+    var n = nodes[i];
+    var right = n.x >= cx;
+    var best = LABEL_MAX_PX;
+    for (var j = 0; j < nodes.length; j++) {
+      if (i === j) continue;
+      var m = nodes[j];
+      var dy = Math.abs(m.y - n.y);
+      if (dy >= SEP_Y + 1) continue;
+      var dx = right ? (m.x - n.x) : (n.x - m.x);
+      if (dx <= 0) continue;
+      var room = dx - nodeRadius(n) - nodeRadius(m) - 6;
+      if (room < best) best = room;
+    }
+    out[n.id] = Math.max(24, Math.min(LABEL_MAX_PX, best));
+  }
+  return out;
+}
+
+// KONTRAKT: signatura zůstává, žádný DOM, deterministické (nikde Math.random),
+// mutuje nodes[].x/.y. Střed = (W/2, H/2) — stejně, jako to měří harness.
+function computeLayout(nodes, edges, W, H) {
+  nodes = nodes || [];
+  edges = edges || [];
+
+  var cx = W / 2, cy = H / 2;
+  var deg = degreeMap(nodes, edges);
+
+  var byType = {};
+  nodes.forEach(function (n) {
+    var t = n.type || 'other';
+    (byType[t] || (byType[t] = [])).push(n);
+  });
+
+  // Pořadí výsečí: největší typ první (od 0°), při shodě abecedně. Výseče se
+  // kladou po směru rostoucího úhlu a poslední končí přesně na 360°, takže
+  // ŽÁDNÁ nepřetéká přes nulu (jinak by měla úhly u 359° i u 1° a jevila by se
+  // jako přes celý kruh).
+  var types = Object.keys(byType).sort(function (a, b) {
+    var d = byType[b].length - byType[a].length;
+    return d !== 0 ? d : cmpStr(a, b);
+  });
+  var counts = {};
+  types.forEach(function (t) { counts[t] = byType[t].length; });
+  var angles = sectorAngles(counts, types);
+
+  var placed = [];
+  var sectors = [];
+  var cursor = 0;
+
+  types.forEach(function (t) {
+    var span = angles[t];
+    var a0 = cursor;
+    var a1 = cursor + span;
+    cursor = a1;
+
+    var pad = Math.min(PAD_DEG, span * 0.12);
+    var i0 = a0 + pad, i1 = a1 - pad;
+
+    // Uzly s nejvyšším stupněm dovnitř — huby skončí u středu, takže hrany
+    // napříč mapou jsou kratší a míň se kříží.
+    var list = byType[t].slice().sort(function (a, b) {
+      var d = (deg[b.id] || 0) - (deg[a.id] || 0);
+      return d !== 0 ? d : cmpStr(a.id, b.id);
+    });
+
+    var pos = null;
+    var kStart = Math.min(RINGS_MIN, Math.max(1, Math.ceil(list.length / 2)));
+    for (var k = kStart; k <= RINGS_MAX && !pos; k++) {
+      pos = trySector(list.length, i0, i1, k, placed, cx, cy);
+    }
+    if (!pos) pos = scanSector(list.length, i0, i1, placed, cx, cy);
+
+    var mid = (i0 + i1) / 2;
+    for (var i = 0; i < list.length; i++) {
+      var p = pos[i];
+      if (!p) {
+        // Nemělo by nastat; radši uzel u vnitřního poloměru než NaN souřadnice.
+        p = {
+          x: cx + R_INNER * Math.cos(mid / DEG),
+          y: cy + R_INNER * Math.sin(mid / DEG)
+        };
+      }
+      list[i].x = p.x;
+      list[i].y = p.y;
+      placed.push({ x: p.x, y: p.y });
+    }
+
+    sectors.push({
+      type: t,
+      count: list.length,
+      a0: a0,
+      a1: a1,
+      mid: (a0 + a1) / 2,
+      span: span
+    });
+  });
+
+  LAYOUT = {
+    cx: cx, cy: cy,
+    rInner: R_INNER,
+    rOuter: R_OUTER,
+    sectors: sectors,
+    labelBudget: labelBudgets(nodes, cx)
+  };
+
+  return nodes;
+}
+
+// -------------------------------------------------------------------------
+// VYHLEDÁVÁNÍ — čistá funkce nad daty (bez DOM), testovatelná headless.
+// Pod MIN_SEARCH_CHARS vrací PRÁZDNOU množinu = signál "nefiltruj vůbec nic".
+// Od 3. znaku vrací id uzlů, které matchly; zbytek render() ZTLUMÍ (nezmaže).
+// -------------------------------------------------------------------------
+function matchNodes(query, nodes) {
+  var hits = new Set();
+  var q = String(query == null ? '' : query).trim().toLowerCase();
+  if (q.length < MIN_SEARCH_CHARS) return hits;
+  (nodes || []).forEach(function (n) {
+    // Matchuje VÝHRADNĚ title — to je jediné pole, které uživatel v mapě vidí
+    // jako popisek. Generátor už do title dosazuje slug, když frontmatter
+    // title: nemá, takže žádný zvláštní fallback na id/slug tu není potřeba.
+    var hay = String(n.title || '').toLowerCase();
+    if (hay.indexOf(q) !== -1) hits.add(n.id);
+  });
+  return hits;
+}
+
+// Popisek se ořízne na počet znaků, který se VEJDE do místa vedle uzlu. Písmo
+// je protiškálované zoomem (font-size = 9/k), takže při přiblížení se do
+// stejného geometrického místa vejde víc znaků -> popisky se prodlužují a pořád
+// se nepřekrývají.
+function fitLabel(str, maxChars) {
+  var s = String(str || '');
+  if (maxChars <= 1) return '';
+  if (s.length <= maxChars) return s;
+  return s.slice(0, maxChars - 1) + '…';
+}
+
+function charsForBudget(budgetPx, k) {
+  var charW = 5.0 / Math.max(k, 0.05);   // ~5 px na znak při font-size 9
+  return Math.max(0, Math.min(140, Math.floor(budgetPx / charW)));
+}
+
+function buildHeader(types) {
+  var legend = document.getElementById('legend');
+  while (legend.firstChild) legend.removeChild(legend.firstChild);
+
+  types.forEach(function (type) {
+    var item = document.createElement('span');
+    item.className = 'legend-item';
+    var swatch = document.createElement('span');
+    swatch.className = 'legend-swatch type-' + type;
+    var label = document.createElement('span');
+    label.textContent = type;
+    item.appendChild(swatch);
+    item.appendChild(label);
+    legend.appendChild(item);
+  });
+
+  var ghostItem = document.createElement('span');
+  ghostItem.className = 'legend-item';
+  var ghostSwatch = document.createElement('span');
+  ghostSwatch.className = 'legend-swatch ghost';
+  var ghostLabel = document.createElement('span');
+  ghostLabel.textContent = 'ghost (chybí záznam)';
+  ghostItem.appendChild(ghostSwatch);
+  ghostItem.appendChild(ghostLabel);
+  legend.appendChild(ghostItem);
+}
+
+function updateStats(state, matched) {
+  var stats = document.getElementById('stats');
+  stats.textContent =
+    'Uzly: ' + state.meta.node_count +
+    ' | Hrany: ' + state.meta.edge_count +
+    ' | Dangling: ' + state.meta.dangling_count;
+
+  var info = document.getElementById('search-info');
+  if (!info) return;
+  var q = state.query.trim();
+  if (q.length === 0) {
+    info.textContent = '';
+  } else if (q.length < MIN_SEARCH_CHARS) {
+    info.textContent = 'zadej ' + MIN_SEARCH_CHARS + '+ znaky';
+  } else {
+    info.textContent = 'shoda: ' + (matched ? matched.size : 0) + ' / ' + state.nodes.length;
+  }
+}
+
+function showDetail(state, node) {
+  var el = document.getElementById('detail');
+  if (!el) return;
+  if (!node) {
+    el.textContent = 'klikni na uzel pro detail';
+    return;
+  }
+  var parts = [node.type, labelOf(node)];
+  if (node.date) parts.push(node.date);
+  if (node.tags && node.tags.length) parts.push('#' + node.tags.join(' #'));
+  if (node.ghost) parts.push('chybí soubor');
+  el.textContent = parts.join('  ·  ');
+}
+
+// --- Detail panel (T-013) --------------------------------------------------
+// Plovoucí panel MIMO SVG. Zobrazuje title + celý frontmatter na jednoklik
+// (viz circle 'click' handler v render()). Čistě DOM, žádný vlastní stav
+// mimo state.selectedId (ten už existuje kvůli zvýraznění sousedů).
+
+function renderDetailPanel(state, node) {
+  var panel = state.panel;
+  if (!panel || !panel.root) return;
+
+  if (!node) {
+    panel.root.classList.add('hidden');
+    return;
+  }
+
+  panel.title.textContent = labelOf(node) + (node.ghost ? ' [chybí soubor]' : '');
+
+  while (panel.meta.firstChild) panel.meta.removeChild(panel.meta.firstChild);
+  var metaId = document.createElement('div');
+  metaId.textContent = 'id: ' + node.id;
+  panel.meta.appendChild(metaId);
+  var metaType = document.createElement('div');
+  metaType.textContent = 'type: ' + (node.type || '') + '  ·  path: ' + (node.path || '');
+  panel.meta.appendChild(metaType);
+
+  while (panel.body.firstChild) panel.body.removeChild(panel.body.firstChild);
+
+  if (node.ghost) {
+    var hint = document.createElement('div');
+    hint.className = 'fm-ghost-hint';
+    hint.textContent = 'chybějící záznam — oprav přes /lore link nebo /lore audit';
+    panel.body.appendChild(hint);
+  } else {
+    var lines = Array.isArray(node.frontmatter) ? node.frontmatter : [];
+    if (!lines.length) {
+      var empty = document.createElement('div');
+      empty.className = 'fm-empty';
+      empty.textContent = '(prázdný frontmatter)';
+      panel.body.appendChild(empty);
+    } else {
+      lines.forEach(function (line) {
+        var row = document.createElement('div');
+        row.className = 'fm-line';
+        row.textContent = line;
+        panel.body.appendChild(row);
+      });
+    }
+  }
+
+  panel.root.classList.remove('hidden');
+}
+
+function showTooltip(tooltipEl, x, y, text) {
+  tooltipEl.textContent = text;
+  tooltipEl.style.left = (x + 12) + 'px';
+  tooltipEl.style.top = (y + 12) + 'px';
+  tooltipEl.style.display = 'block';
+  if (tooltipEl._hideTimer) clearTimeout(tooltipEl._hideTimer);
+  tooltipEl._hideTimer = setTimeout(function () {
+    tooltipEl.style.display = 'none';
+  }, 3000);
+}
+
+function clientToSvgPoint(svg, clientX, clientY) {
+  var ctm = svg.getScreenCTM();
+  if (!ctm) return { x: clientX, y: clientY };
+  var pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  var p = pt.matrixTransform(ctm.inverse());
+  return { x: p.x, y: p.y };
+}
+
+function polar(r, deg) {
+  var a = deg / DEG;
+  return { x: LAYOUT.cx + r * Math.cos(a), y: LAYOUT.cy + r * Math.sin(a) };
+}
+
+// Vzdálenost středu kotouče od úsečky a-b.
+function distToSegment(ax, ay, bx, by, px, py) {
+  var vx = bx - ax, vy = by - ay;
+  var len2 = vx * vx + vy * vy;
+  var t = len2 > 0 ? ((px - ax) * vx + (py - ay) * vy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(ax + t * vx - px, ay + t * vy - py);
+}
+
+// Hrany napříč mapou by jinak vedly rovnou přes prázdný střed a udělaly z něj
+// klubko. Ty, které se ke středu přiblíží, se vedou kvadratickou křivkou s
+// řídicím bodem vystrčeným VEN — obtočí se kolem terče. Krátké lokální hrany
+// zůstávají rovné (bow = 0).
+function edgePath(a, b) {
+  var cx = LAYOUT.cx, cy = LAYOUT.cy;
+  var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  var clear = LAYOUT.rInner - 12;
+  var d = distToSegment(a.x, a.y, b.x, b.y, cx, cy);
+
+  var qx = mx, qy = my;
+  if (d < clear) {
+    var px = -(b.y - a.y), py = (b.x - a.x);
+    var plen = Math.hypot(px, py) || 1;
+    px /= plen; py /= plen;
+    var dot = px * (mx - cx) + py * (my - cy);
+    // Kolmici otoč VEN ze středu. Když hrana vede přesně přes střed (dot ~ 0),
+    // rozhodne id — pořád deterministicky, nikdy náhodně.
+    if (dot < 0 || (Math.abs(dot) < 1e-9 && a.id > b.id)) { px = -px; py = -py; }
+    var bow = 2.2 * (clear - d) + 24;
+    qx = mx + px * bow;
+    qy = my + py * bow;
+  }
+  return 'M ' + a.x.toFixed(2) + ' ' + a.y.toFixed(2) +
+         ' Q ' + qx.toFixed(2) + ' ' + qy.toFixed(2) +
+         ' ' + b.x.toFixed(2) + ' ' + b.y.toFixed(2);
+}
+
+function wedgePath(s, r) {
+  var p1 = polar(r, s.a0);
+  var p2 = polar(r, s.a1);
+  var large = (s.a1 - s.a0) > 180 ? 1 : 0;
+  return 'M ' + LAYOUT.cx + ' ' + LAYOUT.cy +
+         ' L ' + p1.x.toFixed(2) + ' ' + p1.y.toFixed(2) +
+         ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + p2.x.toFixed(2) + ' ' + p2.y.toFixed(2) +
+         ' Z';
+}
+
+function render(state) {
+  var NS = state.svgNs;
+  var vp = state.viewport;
+  while (vp.firstChild) vp.removeChild(vp.firstChild);
+
+  var q = state.query.trim();
+  var searchActive = q.length >= MIN_SEARCH_CHARS;
+  var matched = searchActive ? matchNodes(q, state.nodes) : null;
+
+  updateStats(state, matched);
+
+  var k = state.view.k;
+  state.labelZoom = Math.round(k * 20);
+
+  var highlightSet = null;
+  if (state.selectedId) {
+    highlightSet = new Set([state.selectedId]);
+    var nbrs = state.nb[state.selectedId];
+    if (nbrs) nbrs.forEach(function (id) { highlightSet.add(id); });
+  }
+
+  // Vyhledávání má přednost před výběrem: nematchnutý uzel ZEŠEDNE (nezmizí).
+  function dimClass(id) {
+    if (matched && !matched.has(id)) return 'search-dim';
+    if (highlightSet && !highlightSet.has(id)) return 'dimmed';
+    return null;
+  }
+
+  // --- výseče (jedna na typ, úhel dle počtu uzlů) ------------------------
+  var wedgeR = LAYOUT.rOuter + 24;
+  LAYOUT.sectors.forEach(function (s) {
+    vp.appendChild(createSvgElement(NS, 'path', {
+      d: wedgePath(s, wedgeR),
+      class: 'sector-wedge type-' + s.type
+    }));
+  });
+
+  // --- prázdný střed ------------------------------------------------------
+  vp.appendChild(createSvgElement(NS, 'circle', {
+    cx: LAYOUT.cx, cy: LAYOUT.cy, r: LAYOUT.rInner - 20, class: 'hub-circle'
+  }));
+
+  // --- hrany --------------------------------------------------------------
+  state.edges.forEach(function (e) {
+    var a = state.nodeById[e.source];
+    var b = state.nodeById[e.target];
+    if (!a || !b) return;
+
+    var classes = ['edge'];
+    if (e.dangling) classes.push('dangling');
+    if (matched) {
+      if (matched.has(e.source) && matched.has(e.target)) {
+        classes.push('highlight');
+      } else {
+        classes.push('search-dim');
+      }
+    } else if (highlightSet) {
+      var both = highlightSet.has(e.source) && highlightSet.has(e.target);
+      classes.push(both ? 'highlight' : 'dimmed');
+    }
+    vp.appendChild(createSvgElement(NS, 'path', {
+      d: edgePath(a, b), class: classes.join(' ')
+    }));
+  });
+
+  // --- popisek středu (nad hranami, aby ho neškrtaly) ---------------------
+  var hubTitle = createSvgElement(NS, 'text', {
+    x: LAYOUT.cx, y: LAYOUT.cy - 5, class: 'hub-title'
+  });
+  hubTitle.textContent = 'lore';
+  vp.appendChild(hubTitle);
+  var hubSub = createSvgElement(NS, 'text', {
+    x: LAYOUT.cx, y: LAYOUT.cy + 13, class: 'hub-sub'
+  });
+  // Počet VYKRESLENÝCH hran (deduplikovaných). meta.edge_count v hlavičce je
+  // syrový počet odkazů z frontmatteru, tj. protisměrné dvojice počítá dvakrát.
+  hubSub.textContent = state.nodes.length + ' uzlů · ' + state.edges.length + ' vazeb';
+  vp.appendChild(hubSub);
+
+  // --- uzly ---------------------------------------------------------------
+  state.nodes.forEach(function (n) {
+    var r = nodeRadius(n);
+    var dim = dimClass(n.id);
+    var hit = matched && matched.has(n.id);
+
+    var circleClasses = ['node-circle', 'type-' + n.type];
+    if (n.ghost) circleClasses.push('ghost');
+    if (dim) circleClasses.push(dim);
+    if (hit) circleClasses.push('search-hit');
+    if (n.id === state.selectedId) circleClasses.push('selected');
+
+    var circle = createSvgElement(NS, 'circle', {
+      cx: n.x, cy: n.y, r: r, class: circleClasses.join(' ')
+    });
+
+    var title = createSvgElement(NS, 'title', {});
+    title.textContent = labelOf(n) + (n.ghost ? ' [chybí soubor]' : '');
+    circle.appendChild(title);
+
+    circle.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      state.selectedId = (state.selectedId === n.id) ? null : n.id;
+      var selectedNode = state.selectedId ? n : null;
+      showDetail(state, selectedNode);
+      renderDetailPanel(state, selectedNode);
+      render(state);
+    });
+
+    circle.addEventListener('dblclick', function (ev) {
+      ev.stopPropagation();
+      if (n.ghost) {
+        showTooltip(
+          state.tooltip, ev.clientX, ev.clientY,
+          'chybějící záznam — oprav přes /lore link nebo /lore audit'
+        );
+        return;
+      }
+      var url = '../' + n.path.split('/').map(encodeURIComponent).join('/');
+      window.open(url, '_blank');
+    });
+
+    var g = createSvgElement(NS, 'g', { class: 'node' });
+    g.appendChild(circle);
+
+    // Popisek míří VEN z kotouče (vpravo v pravé půlce, vlevo v levé) a je
+    // useknutý na místo, které má daný uzel k dispozici (labelBudgets()).
+    var right = n.x >= LAYOUT.cx;
+    var maxChars = charsForBudget(LAYOUT.labelBudget[n.id] || 50, k);
+    if (maxChars > 3) {
+      var labelClasses = ['node-label', right ? 'side-right' : 'side-left'];
+      if (dim) labelClasses.push(dim);
+      if (hit) labelClasses.push('search-hit');
+      var text = createSvgElement(NS, 'text', {
+        x: right ? (n.x + r + 4) : (n.x - r - 4), y: n.y, class: labelClasses.join(' ')
+      });
+      text.textContent = fitLabel(labelOf(n), maxChars);
+      g.appendChild(text);
+    }
+
+    vp.appendChild(g);
+  });
+
+  // --- popisky výsečí na obvodu (nahoře, aby je nic nepřekrylo) -----------
+  LAYOUT.sectors.forEach(function (s) {
+    var p = polar(LAYOUT.rOuter + 42, s.mid);
+    var co = Math.cos(s.mid / DEG);
+    var anchor = Math.abs(co) < 0.25 ? 'middle' : (co > 0 ? 'start' : 'end');
+    var cap = createSvgElement(NS, 'text', {
+      x: p.x.toFixed(1), y: p.y.toFixed(1),
+      'text-anchor': anchor,
+      class: 'sector-caption type-' + s.type
+    });
+    cap.textContent = s.type + ' (' + s.count + ')';
+    vp.appendChild(cap);
+  });
+}
+
+// Aplikuje aktuální state.view (x/y/k) na transform obalujícího <g> +
+// dopočítá protiškálovaný font. Jediné místo, které transform doopravdy
+// zapisuje — volají ho jak kolečko/tažení (setupInteractions), tak fokus na
+// výseč (focusSector) a reset.
+function applyViewTransform(state) {
+  var view = state.view;
+  state.viewport.setAttribute(
+    'transform',
+    'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')'
+  );
+  state.viewport.style.fontSize = (9 / view.k) + 'px';
+}
+
+// -------------------------------------------------------------------------
+// FOKUS NA VÝSEČ (T-012c) — tlačítka sekcí v hlavičce.
+//
+// Zoom se NEHARDCODUJE: spočítá se z bounding boxu uzlů dané výseče (+
+// rezerva na popisky, které jdou od uzlu VPRAVO nebo VLEVO — viz render()).
+// Rezervu bereme přímo z LAYOUT.labelBudget, což je stejné číslo, které
+// computeLayout() už spočítal jako místo, jaké má popisek daného uzlu
+// bezpečně k dispozici — žádné nové magické konstanty pro odhad textu.
+//
+// FOCUS_MAX_ZOOM je strop: bez něj by `intel-pass` (1 uzel = bounding box je
+// bod) zoomoval do nekonečna. FOCUS_MIN_BBOX je doplňková pojistka — vynutí
+// rozumnou minimální velikost bounding boxu ještě PŘED stropem, aby výpočet
+// zoomu nikdy nedělil (skoro) nulou.
+// -------------------------------------------------------------------------
+var FOCUS_MAX_ZOOM = 4;      // strop zoomu (viz komentář výše)
+var FOCUS_MIN_ZOOM = 0.3;
+var FOCUS_PADDING = 48;      // px paddingu kolem bounding boxu ve viewportu
+var FOCUS_MIN_BBOX = 90;     // min. rozměr bounding boxu (ochrana pro 1-uzlové výseče)
+var FOCUS_ANIM_MS = 350;     // délka CSS přechodu — viz .view-transition
+
+// Bounding box uzlů daného typu VČETNĚ rezervy na popisek (doprava, pokud je
+// uzel v pravé půlce mapy, jinak doleva — stejná strana, na kterou render()
+// popisek skutečně kreslí).
+function sectorBBox(state, type) {
+  var nodes = state.nodes.filter(function (n) { return (n.type || 'other') === type; });
+  if (!nodes.length) return null;
+
+  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  nodes.forEach(function (n) {
+    var r = nodeRadius(n);
+    var budget = (LAYOUT.labelBudget && LAYOUT.labelBudget[n.id]) || 50;
+    var right = n.x >= LAYOUT.cx;
+    var left = right ? (n.x - r) : (n.x - r - budget);
+    var rightEdge = right ? (n.x + r + budget) : (n.x + r);
+    if (left < minX) minX = left;
+    if (rightEdge > maxX) maxX = rightEdge;
+    if (n.y - r < minY) minY = n.y - r;
+    if (n.y + r > maxY) maxY = n.y + r;
+  });
+
+  if (maxX - minX < FOCUS_MIN_BBOX) {
+    var padX = (FOCUS_MIN_BBOX - (maxX - minX)) / 2;
+    minX -= padX; maxX += padX;
+  }
+  if (maxY - minY < FOCUS_MIN_BBOX) {
+    var padY = (FOCUS_MIN_BBOX - (maxY - minY)) / 2;
+    minY -= padY; maxY += padY;
+  }
+  return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+}
+
+// Cílový view (k, x, y) — bounding box výseče vyplní state.W × state.H s
+// paddingem FOCUS_PADDING, zoom stropovaný FOCUS_MAX_ZOOM. Sedí stejně dobře
+// pro `lessons` (187° — bbox skoro půl kotouče, k vyjde malé) i `intel-pass`
+// (15°, 1 uzel — bez stropu by k vyšlo obrovské).
+function computeFocusView(state, type) {
+  var box = sectorBBox(state, type);
+  if (!box) return null;
+  var w = box.maxX - box.minX, h = box.maxY - box.minY;
+  var k = Math.min((state.W - 2 * FOCUS_PADDING) / w, (state.H - 2 * FOCUS_PADDING) / h);
+  k = Math.min(FOCUS_MAX_ZOOM, Math.max(FOCUS_MIN_ZOOM, k));
+  var ccx = (box.minX + box.maxX) / 2, ccy = (box.minY + box.maxY) / 2;
+  return { k: k, x: state.W / 2 - k * ccx, y: state.H / 2 - k * ccy };
+}
+
+function setSectionButtonsActive(state, type) {
+  if (!state.sectionButtons) return;
+  Object.keys(state.sectionButtons).forEach(function (t) {
+    state.sectionButtons[t].classList.toggle('active', t === type);
+  });
+}
+
+// Plynulý přechod na cílový view. Animace jede přes CSS transition na
+// transform obalujícího <g> (třída .view-transition), ne přes
+// requestAnimationFrame/setInterval smyčku — logický state.view se nastaví
+// na cíl OKAMŽITĚ (proto je fokus programově ověřitelný beze čekání na
+// animaci), vizuální interpolaci mezitím dělá čistě CSS. Třída se po
+// FOCUS_ANIM_MS zase sundá, aby kolečko/tažení zůstaly bez zpoždění.
+function animateToView(state, target) {
+  state.viewport.classList.add('view-transition');
+  state.view.x = target.x;
+  state.view.y = target.y;
+  state.view.k = target.k;
+  applyViewTransform(state);
+  render(state);
+
+  if (state._viewAnimTimer) clearTimeout(state._viewAnimTimer);
+  state._viewAnimTimer = setTimeout(function () {
+    state.viewport.classList.remove('view-transition');
+    state._viewAnimTimer = null;
+  }, FOCUS_ANIM_MS + 60);
+}
+
+// Klik na tlačítko sekce: zafokusuje výseč daného typu. Klik na už
+// zafokusovanou sekci přepne zpět na celkový pohled (toggle).
+function focusSector(state, type) {
+  if (state.focusedType === type) {
+    state.focusedType = null;
+    setSectionButtonsActive(state, null);
+    animateToView(state, { x: 0, y: 0, k: 1 });
+    return;
+  }
+  var target = computeFocusView(state, type);
+  if (!target) return;
+  state.focusedType = type;
+  setSectionButtonsActive(state, type);
+  animateToView(state, target);
+}
+
+// Jedno tlačítko na typ, popisek "typ (počet)", pořadí přebrané přímo z
+// LAYOUT.sectors — ten je už seřazený sestupně dle počtu uzlů (computeLayout).
+function buildSectionButtons(state) {
+  var container = document.getElementById('section-buttons');
+  if (!container) return;
+  while (container.firstChild) container.removeChild(container.firstChild);
+
+  state.sectionButtons = {};
+  LAYOUT.sectors.forEach(function (s) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'section-btn type-' + s.type;
+    btn.textContent = s.type + ' (' + s.count + ')';
+    btn.title = 'zafokusovat na ' + s.type;
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      focusSector(state, s.type);
+    });
+    container.appendChild(btn);
+    state.sectionButtons[s.type] = btn;
+  });
+}
+
+function setupInteractions(state) {
+  var svg = state.svg;
+  var viewport = state.viewport;
+  var view = state.view;
+
+  // Protiškálování písma: na obrazovce zůstává stejně velké, ale v souřadnicích
+  // SVG se zmenšuje -> při přiblížení se do stejné mezery vejde delší popisek.
+  // Skutečný zápis transformu dělá applyViewTransform() — sdílená s focusSector(),
+  // ať kolečko/tažení i fokus na výseč píšou transform stejnou cestou.
+  function applyTransform() {
+    applyViewTransform(state);
+  }
+  applyTransform();
+
+  svg.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    var p = clientToSvgPoint(svg, ev.clientX, ev.clientY);
+    var factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15;
+    var newK = Math.min(Math.max(view.k * factor, 0.2), 8);
+    var wx = (p.x - view.x) / view.k;
+    var wy = (p.y - view.y) / view.k;
+    view.k = newK;
+    view.x = p.x - wx * newK;
+    view.y = p.y - wy * newK;
+    applyTransform();
+
+    // Překresli jen když se zoom posunul natolik, že se změní délky popisků.
+    if (Math.round(view.k * 20) !== state.labelZoom) render(state);
+  }, { passive: false });
+
+  var panning = false;
+  var panStart = null;
+
+  svg.addEventListener('mousedown', function (ev) {
+    if (ev.target && ev.target.classList && ev.target.classList.contains('node-circle')) return;
+    panning = true;
+    var p = clientToSvgPoint(svg, ev.clientX, ev.clientY);
+    panStart = { x: p.x - view.x, y: p.y - view.y };
+    svg.classList.add('panning');
+  });
+
+  window.addEventListener('mousemove', function (ev) {
+    if (!panning) return;
+    var p = clientToSvgPoint(svg, ev.clientX, ev.clientY);
+    view.x = p.x - panStart.x;
+    view.y = p.y - panStart.y;
+    applyTransform();
+  });
+
+  window.addEventListener('mouseup', function () {
+    panning = false;
+    svg.classList.remove('panning');
+  });
+
+  svg.addEventListener('click', function (ev) {
+    if (ev.target === svg || ev.target === viewport) {
+      if (state.selectedId !== null) {
+        state.selectedId = null;
+        showDetail(state, null);
+        renderDetailPanel(state, null);
+        render(state);
+      }
+    }
+  });
+
+  var search = document.getElementById('search');
+  if (search) {
+    search.addEventListener('input', function () {
+      state.query = search.value || '';
+      render(state);
+    });
+  }
+
+  var resetBtn = document.getElementById('reset-view');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+      if (state._viewAnimTimer) { clearTimeout(state._viewAnimTimer); state._viewAnimTimer = null; }
+      view.x = 0; view.y = 0; view.k = 1;
+      applyTransform();
+      state.selectedId = null;
+      state.query = '';
+      state.focusedType = null;
+      setSectionButtonsActive(state, null);
+      if (search) search.value = '';
+      showDetail(state, null);
+      renderDetailPanel(state, null);
+      render(state);
+    });
+  }
+
+  // Detail panel: klik do panelu nesmí spustit pan/deselect na svg (panel je
+  // mimo svg, ale stopPropagation je tu navíc jako explicitní pojistka).
+  // Zavírací křížek i Esc dělají přesně to, co druhý klik na stejný uzel.
+  var panel = state.panel;
+  if (panel && panel.root) {
+    panel.root.addEventListener('mousedown', function (ev) { ev.stopPropagation(); });
+    panel.root.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  }
+  if (panel && panel.closeBtn) {
+    panel.closeBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (state.selectedId !== null) {
+        state.selectedId = null;
+        showDetail(state, null);
+        render(state);
+      }
+      renderDetailPanel(state, null);
+    });
+  }
+
+  window.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
+    if (state.selectedId !== null) {
+      state.selectedId = null;
+      showDetail(state, null);
+      render(state);
+    }
+    renderDetailPanel(state, null);
+  });
+}
+
+function main() {
+  var raw = document.getElementById('lore-graph').textContent;
+  var data = JSON.parse(raw);
+  var nodes = data.nodes;
+  var meta = data.meta;
+  var edges = dedupEdges(data.edges);
+
+  // Stejné plátno, na jakém běží acceptance harness -> co projde měřením, to
+  // uživatel doopravdy vidí. Kotouč (R_OUTER + popisky výsečí) se do 1200x900
+  // vejde i s rezervou od okrajů.
+  var W = 1200;
+  var H = 900;
+
+  var svgRoot = document.getElementById('svg');
+  var svgNs = svgRoot.namespaceURI;
+  svgRoot.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+  computeLayout(nodes, edges, W, H);
+
+  var nodeById = {};
+  nodes.forEach(function (n) { nodeById[n.id] = n; });
+
+  var types = Array.from(new Set(nodes.map(function (n) { return n.type; }))).sort();
+  buildHeader(types);
+
+  var state = {
+    nodes: nodes,
+    edges: edges,
+    nodeById: nodeById,
+    nb: buildAdjacency(nodes, edges),
+    meta: meta,
+    selectedId: null,
+    query: '',
+    labelZoom: 0,
+    view: { x: 0, y: 0, k: 1 },
+    W: W,
+    H: H,
+    focusedType: null,
+    sectionButtons: null,
+    svg: svgRoot,
+    svgNs: svgNs,
+    viewport: document.getElementById('viewport'),
+    tooltip: document.getElementById('tooltip'),
+    panel: {
+      root: document.getElementById('detail-panel'),
+      title: document.getElementById('detail-panel-title'),
+      meta: document.getElementById('detail-panel-meta'),
+      body: document.getElementById('detail-panel-body'),
+      closeBtn: document.getElementById('detail-panel-close')
+    }
+  };
+
+  setupInteractions(state);
+  buildSectionButtons(state);
+  render(state);
+}
+
+if (typeof document !== 'undefined') { document.addEventListener('DOMContentLoaded', main); }
+</script>
+</body>
+</html>
